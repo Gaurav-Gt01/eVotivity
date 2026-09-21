@@ -1,0 +1,22 @@
+{
+  "name": "evotivity-monorepo",
+  "version": "1.0.0",
+  "description": "EvoTivity / eVoteVerity Monorepo - Blockchain Voting Platform",
+  "private": true,
+  "workspaces": [
+    "backend-api-service",
+    "blockchain-service",
+    "frontend-react-app"
+  ],
+  "scripts": {
+    "dev:backend": "cd backend-api-service && npm run dev",
+    "dev:frontend": "cd frontend-react-app && npm run dev",
+    "dev:blockchain": "cd blockchain-service && npm run node",
+    "dev:face-ai": "cd face-ai-service && source venv/bin/activate && python app.py",
+    "build:all": "npm run build --workspace=frontend-react-app && npm run compile --workspace=blockchain-service",
+    "deploy:contracts": "cd blockchain-service && npm run deploy:local"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

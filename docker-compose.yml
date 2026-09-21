@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  mysql-db:
+    image: mysql:8.0
+    container_name: evotivity-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: evotivity_db
+      MYSQL_USER: evotivity_user
+      MYSQL_PASSWORD: evotivity_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  redis-cache:
+    image: redis:7-alpine
+    container_name: evotivity-redis
+    ports:
+      - "6379:6379"
+
+  backend-api:
+    build: ./backend-api-service
+    container_name: evotivity-backend
+    ports:
+      - "5001:5001"
+    environment:
+      PORT: 5001
+      MYSQL_HOST: mysql-db
+      MYSQL_USER: evotivity_user
+      MYSQL_PASSWORD: evotivity_pass
+      MYSQL_DB: evotivity_db
+      REDIS_HOST: redis-cache
+      FACE_AI_SERVICE_URL: http://face-ai:5000
+    depends_on:
+      - mysql-db
+      - redis-cache
+
+  face-ai:
+    build: ./face-ai-service
+    container_name: evotivity-face-ai
+    ports:
+      - "5000:5000"
+
+  frontend-react:
+    build: ./frontend-react-app
+    container_name: evotivity-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend-api
+
+volumes:
+  mysql_data:

@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+backend-api-service/node_modules/
+blockchain-service/node_modules/
+frontend-react-app/node_modules/
+face-ai-service/venv/
+face-ai-service/__pycache__/
+*.pyc
+
+# Build outputs & caches
+dist/
+build/
+target/
+frontend-react-app/dist/
+blockchain-service/artifacts/
+blockchain-service/cache/
+face-ai-service/uploads/*
+!face-ai-service/uploads/.gitkeep
+
+# Environment variables & OS files
+.env
+.env.local
+.DS_Store
+*.log
