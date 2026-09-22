@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
 
 export default function AdminDashboard({ elections, voters, createElection, updatePhase, addCandidate, approveVoter, selectElectionForResults }) {
+  const [adminAuthenticated, setAdminAuthenticated] = useState(() => {
+    return localStorage.getItem('evotivity_admin_logged_in') === 'true';
+  });
+
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+
+  // Form states for Admin tasks
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [contractAddress, setContractAddress] = useState('');
@@ -11,6 +20,22 @@ export default function AdminDashboard({ elections, voters, createElection, upda
   const [candSymbolUrl, setCandSymbolUrl] = useState('');
   const [candBio, setCandBio] = useState('');
   const [showCandidateModal, setShowCandidateModal] = useState(false);
+
+  const handleAdminLogin = (e) => {
+    e.preventDefault();
+    if ((adminEmail === 'admin@evotivity.com' || adminEmail === 'admin') && adminPassword === 'admin123') {
+      setAdminAuthenticated(true);
+      localStorage.setItem('evotivity_admin_logged_in', 'true');
+      setAuthError('');
+    } else {
+      setAuthError('Invalid Admin credentials! Use admin@evotivity.com / admin123');
+    }
+  };
+
+  const handleAdminLogout = () => {
+    setAdminAuthenticated(false);
+    localStorage.removeItem('evotivity_admin_logged_in');
+  };
 
   const handleCreate = (e) => {
     e.preventDefault();
@@ -30,12 +55,78 @@ export default function AdminDashboard({ elections, voters, createElection, upda
     setShowCandidateModal(false);
   };
 
+  // 🔒 ADMIN AUTHENTICATION GUARD SCREEN
+  if (!adminAuthenticated) {
+    return (
+      <div className="container" style={{ maxWidth: '500px', marginTop: '3rem' }}>
+        <div className="card" style={{ borderColor: 'var(--accent-primary)', boxShadow: 'var(--shadow-glow)' }}>
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🛡️</div>
+            <h2 style={{ color: '#fff' }}>Administrator Authentication</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+              Restricted Area. Please enter authorized Administrator credentials to access the election control panel.
+            </p>
+          </div>
+
+          {authError && (
+            <div style={{ background: 'rgba(244, 63, 94, 0.15)', border: '1px solid var(--accent-rose)', color: 'var(--accent-rose)', padding: '0.75rem', borderRadius: 'var(--radius-md)', marginBottom: '1rem', fontSize: '0.85rem', textAlign: 'center' }}>
+              {authError}
+            </div>
+          )}
+
+          <form onSubmit={handleAdminLogin}>
+            <div className="form-group">
+              <label className="form-label">Admin Email / Username</label>
+              <input 
+                type="text" 
+                className="form-control" 
+                value={adminEmail} 
+                onChange={(e) => setAdminEmail(e.target.value)} 
+                placeholder="admin@evotivity.com" 
+                required 
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Admin Passcode</label>
+              <input 
+                type="password" 
+                className="form-control" 
+                value={adminPassword} 
+                onChange={(e) => setAdminPassword(e.target.value)} 
+                placeholder="••••••••" 
+                required 
+              />
+            </div>
+
+            <div style={{ background: 'rgba(6, 182, 212, 0.1)', border: '1px solid var(--border-glass)', padding: '0.75rem', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', fontSize: '0.8rem', color: 'var(--accent-cyan)' }}>
+              🔑 <strong>Demo Credentials:</strong><br />
+              Email: <code>admin@evotivity.com</code><br />
+              Password: <code>admin123</code>
+            </div>
+
+            <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+              🔓 Authenticate & Access Admin Portal
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // 🔓 AUTHENTICATED ADMIN DASHBOARD
   return (
     <div className="container">
-      <h1 style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>👨‍💼 Administrator Control Panel</h1>
-      <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
-        Manage multi-election lifecycles, deploy Sepolia smart contracts, add candidates, approve voters, and control election phases.
-      </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h1 style={{ fontSize: '2.2rem', marginBottom: '0.25rem' }}>👨‍💼 Administrator Control Panel</h1>
+          <p style={{ color: 'var(--text-muted)' }}>
+            Manage multi-election lifecycles, deploy Sepolia smart contracts, add candidates, approve voters, and control election phases.
+          </p>
+        </div>
+        <button onClick={handleAdminLogout} className="btn btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+          🔒 Logout Admin
+        </button>
+      </div>
 
       {/* Stats Header */}
       <div className="grid-3" style={{ marginBottom: '2.5rem' }}>
