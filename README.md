@@ -10,7 +10,7 @@ EvoTivity is a decentralized, tamper-resistant digital voting platform built wit
 
 ---
 
-## 🏛️ High-Availability System Architecture
+## System Architecture
 
 ```
 [ User / Internet ] ---> [ WAF / Ingress ]
@@ -43,26 +43,6 @@ EvoTivity is a decentralized, tamper-resistant digital voting platform built wit
 
 ## 👥 Monorepo Microservices Division (4 Team Members)
 
-```
-                                 EvoTivity Monorepo Architecture
-                                                │
-       ┌────────────────────────┬───────────────┴───────────────┬────────────────────────┐
-       ▼                        ▼                               ▼                        ▼
-┌──────────────┐      ┌──────────────────┐            ┌───────────────────┐    ┌──────────────────┐
-│ Contributor 1│      │   Contributor 2  │            │   Contributor 3   │    │   Contributor 4  │
-│ Node/Express │      │ Blockchain Smart │            │   React Frontend  │    │   System Arch,   │
-│ Backend API  │      │  Contracts & Web3│            │  Glassmorphism UI │    │ Python AI & K8s  │
-└──────────────┘      └──────────────────┘            └───────────────────┘    └──────────────────┘
-```
-
-| Service Module | Contributor | Key Tech Stack & Deliverables |
-| :--- | :--- | :--- |
-| **`backend-api-service/`** | **Contributor 1** | Node.js + Express REST API, MySQL ORM (Sequelize), JWT Auth, Email OTP engine, Redis caching, Async vote queue processor. |
-| **`blockchain-service/`** | **Contributor 2** | `ElectionFactory.sol` & `Election.sol` Solidity contracts, Hardhat compilation/testing/deployment scripts, Sepolia RPC relayer & Etherscan listener. |
-| **`frontend-react-app/`** | **Contributor 3** | React (Vite) Single Page Application, MetaMask Web3 provider, Webcam face scanner component, 5-Step Guided Voting Wizard, Admin Portal, Voter Portal, Live Charts. |
-| **`face-ai-service/` & `system-architecture/`** | **Contributor 4** | Python DeepFace AI facial recognition microservice (`app.py`), Docker Compose, Kubernetes manifests (`k8s/`), WAF & API Gateway routing, HA Redis/Kafka config. |
-
----
 
 ## 🔐 Core Security & 5-Step Guided Voting Workflow
 
