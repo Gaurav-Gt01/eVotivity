@@ -22,3 +22,5 @@ face-ai-service/uploads/*
 .env.local
 .DS_Store
 *.log
+*.sqlite
+.vscode/
