@@ -31,7 +31,12 @@ const Candidate = sequelize.define('Candidate', {
   voteCount: {
     type: DataTypes.INTEGER,
     defaultValue: 0
+  },
+  isApproved: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
   }
 });
 
 module.exports = Candidate;
+

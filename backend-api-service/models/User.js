@@ -7,6 +7,10 @@ const User = sequelize.define('User', {
     primaryKey: true,
     autoIncrement: true
   },
+  username: {
+    type: DataTypes.STRING,
+    unique: true
+  },
   email: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -24,6 +28,9 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     unique: true
   },
+  walletAddress: {
+    type: DataTypes.STRING
+  },
   role: {
     type: DataTypes.ENUM('ROLE_VOTER', 'ROLE_ADMIN'),
     defaultValue: 'ROLE_VOTER'
@@ -34,7 +41,11 @@ const User = sequelize.define('User', {
   isApproved: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
+  },
+  refreshToken: {
+    type: DataTypes.TEXT
   }
 });
 
 module.exports = User;
+
