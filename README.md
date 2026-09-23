@@ -87,4 +87,4 @@ docker-compose up --build
 ---
 
 ## 📜 License & Acknowledgments
-Built with ❤️ by Team EvoTivity. Open-source under the [MIT License](LICENSE).
+Built with by Team EvoTivity. Open-source under the [MIT License](LICENSE).
