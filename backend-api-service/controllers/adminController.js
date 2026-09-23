@@ -84,3 +84,28 @@ exports.getAllVoters = async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 };
+
+exports.getPendingRequests = async (req, res) => {
+  try {
+    const pendingVoters = await User.findAll({ where: { role: 'ROLE_VOTER', isApproved: false } });
+    const pendingCandidates = await Candidate.findAll({ where: { isApproved: false } });
+    return res.json({ pendingVoters, pendingCandidates });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+exports.approveCandidate = async (req, res) => {
+  try {
+    const { candidateId, approved } = req.body;
+    const candidate = await Candidate.findByPk(candidateId);
+    if (!candidate) return res.status(404).json({ error: 'Candidate not found' });
+
+    candidate.isApproved = approved;
+    await candidate.save();
+    return res.json(candidate);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+

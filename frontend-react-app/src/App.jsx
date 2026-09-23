@@ -8,63 +8,72 @@ import VoteWizardPage from './pages/VoteWizardPage';
 import ResultsPage from './pages/ResultsPage';
 
 export default function App() {
-  const [activePage, setActivePage] = useState('home');
+  const [activePage, setActivePage] = useState(() => {
+    const saved = localStorage.getItem('evotivity_active_page');
+    if (!saved || saved === 'undefined' || saved === 'null') return 'home';
+    return saved;
+  });
+
   const [walletAddress, setWalletAddress] = useState('');
   const [user, setUser] = useState(null);
 
-  const [elections, setElections] = useState([
-    {
-      id: 1,
-      title: 'National Presidential Election 2026',
-      description: 'Decentralized digital voting for national presidential candidates powered by Sepolia Smart Contracts.',
-      phase: 'VOTING',
-      totalVotesCast: 70,
-      contractAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
-    },
-    {
-      id: 2,
-      title: 'University Student Council Election',
-      description: 'Student body election for executive council members with Python DeepFace facial verification.',
-      phase: 'REGISTRATION',
-      totalVotesCast: 0,
-      contractAddress: '0x3A94B2C89e7fA11492078656d2C01594F3b934e2'
+  const [elections, setElections] = useState([]);
+  const [voters, setVoters] = useState([]);
+  const [selectedElection, setSelectedElection] = useState(() => {
+    try {
+      const saved = localStorage.getItem('evotivity_selected_election');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
     }
-  ]);
+  });
 
-  const [voters, setVoters] = useState([
-    { id: 1, fullName: 'John Doe', email: 'voter@example.com', nationalId: 'NAT-98402', isApproved: true },
-    { id: 2, fullName: 'Sarah Smith', email: 'sarah@example.com', nationalId: 'NAT-48201', isApproved: false }
-  ]);
-
-  const [selectedElection, setSelectedElection] = useState(null);
+  const navigateTo = (page) => {
+    setActivePage(page);
+    localStorage.setItem('evotivity_active_page', page);
+  };
 
   useEffect(() => {
     fetchElections();
+    fetchVoters();
   }, []);
 
   const fetchElections = async () => {
     try {
       const res = await axios.get('/api/voter/elections');
-      if (res.data && res.data.length > 0) {
+      if (res.data) {
         setElections(res.data);
       }
     } catch (err) {
-      console.warn("Backend API connecting warning, using demo dataset");
+      console.warn("Failed to fetch elections from API:", err.message);
+      setElections([]);
+    }
+  };
+
+  const fetchVoters = async () => {
+    try {
+      const res = await axios.get('/api/admin/voters/all');
+      if (res.data) {
+        setVoters(res.data);
+      }
+    } catch (err) {
+      setVoters([]);
     }
   };
 
   const connectWallet = async () => {
-    if (typeof window.ethereum !== 'undefined') {
-      try {
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        setWalletAddress(accounts[0]);
-      } catch (err) {
-        alert("MetaMask connection failed: " + err.message);
+    try {
+      const { requestMetaMaskAccount } = await import('./utils/web3Utils');
+      const account = await requestMetaMaskAccount();
+      setWalletAddress(account);
+    } catch (err) {
+      const manual = prompt(
+        `${err.message}\n\nWould you like to manually input your Sepolia MetaMask wallet address for testing?`,
+        walletAddress || ""
+      );
+      if (manual && manual.startsWith('0x')) {
+        setWalletAddress(manual);
       }
-    } else {
-      const mockAddr = "0x71C7656EC7ab88b098defB751B7401B5f6d8976F";
-      setWalletAddress(mockAddr);
-      alert("MetaMask extension not detected. Simulating wallet connection for demo: " + mockAddr);
     }
   };
 
@@ -72,9 +81,9 @@ export default function App() {
     try {
       const res = await axios.post('/api/admin/elections/create', newElec);
       setElections([res.data, ...elections]);
+      alert("Election created successfully!");
     } catch (err) {
-      const created = { id: elections.length + 1, ...newElec, phase: 'REGISTRATION', totalVotesCast: 0 };
-      setElections([created, ...elections]);
+      alert("Error creating election: " + (err.response?.data?.message || err.message));
     }
   };
 
@@ -83,7 +92,7 @@ export default function App() {
       await axios.post(`/api/admin/elections/${id}/phase?phase=${phase}`);
       fetchElections();
     } catch (err) {
-      setElections(elections.map(e => e.id === id ? { ...e, phase } : e));
+      alert("Error updating election phase: " + (err.response?.data?.message || err.message));
     }
   };
 
@@ -91,47 +100,54 @@ export default function App() {
     try {
       await axios.post('/api/admin/candidates/add', cand);
       alert("Candidate registered successfully!");
+      fetchElections();
     } catch (err) {
-      alert("Candidate registered!");
+      alert("Error adding candidate: " + (err.response?.data?.message || err.message));
     }
   };
 
   const approveVoter = async (userId, wallet) => {
     try {
       await axios.post('/api/admin/voters/approve', { electionId: 1, userId, walletAddress: wallet, approved: true });
-      setVoters(voters.map(v => v.id === userId ? { ...v, isApproved: true } : v));
+      fetchVoters();
+      alert("Voter approved successfully.");
     } catch (err) {
-      setVoters(voters.map(v => v.id === userId ? { ...v, isApproved: true } : v));
+      alert("Approval error: " + (err.response?.data?.message || err.message));
     }
   };
 
   const loginVoter = (userObj) => {
-    setUser({ userId: 1, ...userObj });
+    setUser(userObj);
+    if (userObj && userObj.walletAddress) {
+      setWalletAddress(userObj.walletAddress);
+    }
   };
 
   const selectElectionForVoting = (election) => {
     setSelectedElection(election);
-    setActivePage('vote-wizard');
+    localStorage.setItem('evotivity_selected_election', JSON.stringify(election));
+    navigateTo('vote-wizard');
   };
 
   const selectElectionForResults = (election) => {
     setSelectedElection(election);
-    setActivePage('results');
+    localStorage.setItem('evotivity_selected_election', JSON.stringify(election));
+    navigateTo('results');
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)' }}>
       <Navbar 
         activePage={activePage} 
-        setActivePage={setActivePage} 
+        setActivePage={navigateTo} 
         walletAddress={walletAddress} 
         connectWallet={connectWallet} 
       />
 
       <div style={{ flex: 1 }}>
-        {activePage === 'home' && (
+        {(activePage === 'home' || ((activePage === 'vote-wizard' || activePage === 'results') && !selectedElection)) && (
           <Home 
-            setActivePage={setActivePage} 
+            setActivePage={navigateTo} 
             elections={elections} 
             selectElectionForVoting={selectElectionForVoting} 
           />
@@ -162,6 +178,7 @@ export default function App() {
             walletAddress={walletAddress} 
             connectWallet={connectWallet} 
             selectElectionForResults={selectElectionForResults} 
+            user={user}
           />
         )}
         {activePage === 'results' && selectedElection && (
@@ -169,9 +186,11 @@ export default function App() {
         )}
       </div>
 
-      <footer style={{ textAlign: 'center', padding: '3rem 1rem', marginTop: '4rem', borderTop: '1px solid var(--border-glass)', color: 'var(--text-dim)', fontSize: '0.9rem' }}>
-        <p>EvoTivity / eVoteVerity Monorepo &copy; 2026. React + Node.js + Solidity + Python DeepFace + Docker/K8s.</p>
+      <footer style={{ textAlign: 'center', padding: '2rem 1rem', marginTop: '3rem', borderTop: '1px solid var(--border-subtle)', background: '#ffffff', color: 'var(--text-dim)', fontSize: '0.85rem' }}>
+        <p>EvoTivity / eVoteVerity &copy; 2026. All rights reserved.</p>
       </footer>
     </div>
   );
 }
+
+

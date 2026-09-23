@@ -8,5 +8,7 @@ router.post('/register-election', voterController.registerForElection);
 router.get('/status', voterController.getVoterStatus);
 router.post('/cast-vote', voterController.castVote);
 router.get('/results/:id', voterController.getResults);
+router.get('/blockchain/verify-block', voterController.verifyLocalBlock);
+router.get('/blockchain/blocks/:electionId', voterController.getBlockchainBlocks);
 
 module.exports = router;
