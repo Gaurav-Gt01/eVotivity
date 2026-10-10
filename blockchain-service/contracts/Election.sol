@@ -43,13 +43,15 @@ contract Election {
     event VoteCast(address indexed voterAddress, uint256 indexed candidateId, uint256 timestamp);
     event PhaseChanged(Phase indexed newPhase);
 
+    bool public manualOverride;
+
     modifier onlyAdmin() {
         require(msg.sender == admin, "Only admin can call this");
         _;
     }
 
     modifier inPhase(Phase _phase) {
-        require(currentPhase == _phase, "Action not allowed in current phase");
+        require(getPhase() == _phase, "Action not allowed in current phase");
         _;
     }
 
@@ -66,6 +68,26 @@ contract Election {
         endTime = _endTime;
         admin = _admin;
         currentPhase = Phase.REGISTRATION;
+    }
+
+    /**
+     * @dev Automatically determines current phase based on block.timestamp and schedule.
+     * Respects manual admin override if explicitly set.
+     */
+    function getPhase() public view returns (Phase) {
+        if (manualOverride) {
+            return currentPhase;
+        }
+        if (startTime > 0 && endTime > 0) {
+            if (block.timestamp < startTime) {
+                return Phase.REGISTRATION;
+            } else if (block.timestamp <= endTime) {
+                return Phase.VOTING;
+            } else {
+                return Phase.COMPLETED;
+            }
+        }
+        return currentPhase;
     }
 
     function addCandidate(
@@ -96,8 +118,15 @@ contract Election {
     }
 
     function setPhase(Phase _newPhase) external onlyAdmin {
+        manualOverride = true;
         currentPhase = _newPhase;
         emit PhaseChanged(_newPhase);
+    }
+
+    function setSchedule(uint256 _startTime, uint256 _endTime) external onlyAdmin {
+        startTime = _startTime;
+        endTime = _endTime;
+        manualOverride = false;
     }
 
     /**

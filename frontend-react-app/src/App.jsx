@@ -36,6 +36,11 @@ export default function App() {
   useEffect(() => {
     fetchElections();
     fetchVoters();
+    // Auto-refresh elections every 30 seconds so phase updates live in UI
+    const interval = setInterval(() => {
+      fetchElections();
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchElections = async () => {
@@ -93,6 +98,23 @@ export default function App() {
       fetchElections();
     } catch (err) {
       alert("Error updating election phase: " + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const deleteElection = async (id) => {
+    if (!window.confirm(`Are you sure you want to permanently delete Election #${id}? This will remove all associated candidates and voting records.`)) {
+      return;
+    }
+    try {
+      await axios.delete(`/api/admin/elections/${id}`);
+      setElections((prev) => prev.filter((e) => e.id !== id));
+      if (selectedElection && selectedElection.id === id) {
+        setSelectedElection(null);
+        localStorage.removeItem('evotivity_selected_election');
+      }
+      alert("Election deleted successfully.");
+    } catch (err) {
+      alert("Error deleting election: " + (err.response?.data?.message || err.message));
     }
   };
 
@@ -157,6 +179,7 @@ export default function App() {
             elections={elections} 
             voters={voters} 
             createElection={createElection} 
+            deleteElection={deleteElection}
             updatePhase={updatePhase} 
             addCandidate={addCandidate} 
             approveVoter={approveVoter} 

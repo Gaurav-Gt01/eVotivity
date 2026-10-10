@@ -3,10 +3,14 @@ const Election = require('../models/Election');
 const Candidate = require('../models/Candidate');
 const VoterRegistration = require('../models/VoterRegistration');
 const VoteRecord = require('../models/VoteRecord');
+const { syncElectionPhase } = require('../utils/phaseUtils');
 
 exports.getAllElections = async (req, res) => {
   try {
     const elections = await Election.findAll({ order: [['createdAt', 'DESC']] });
+    for (const election of elections) {
+      await syncElectionPhase(election);
+    }
     return res.json(elections);
   } catch (error) {
     return res.status(500).json({ error: error.message });
@@ -18,6 +22,7 @@ exports.getElectionById = async (req, res) => {
     const election = await Election.findByPk(req.params.id);
     if (!election) return res.status(404).json({ error: 'Election not found' });
     
+    await syncElectionPhase(election);
     const candidates = await Candidate.findAll({ where: { electionId: req.params.id } });
     return res.json({ election, candidates });
   } catch (error) {
@@ -67,6 +72,20 @@ exports.getVoterStatus = async (req, res) => {
 exports.castVote = async (req, res) => {
   try {
     const { electionId, candidateId, userId, walletAddress, txHash, blockNumber } = req.body;
+
+    // Verify Election exists and is currently in active VOTING phase
+    const election = await Election.findByPk(electionId);
+    if (!election) {
+      return res.status(404).json({ success: false, message: 'Election not found.' });
+    }
+
+    await syncElectionPhase(election);
+    if (election.phase !== 'VOTING') {
+      return res.status(400).json({
+        success: false,
+        message: `Voting is not active for this election. Current phase: ${election.phase}. (Active voting window: ${election.startDate ? new Date(election.startDate).toLocaleString() : 'N/A'} - ${election.endDate ? new Date(election.endDate).toLocaleString() : 'N/A'})`
+      });
+    }
 
     // Strict Idempotency Check: Prevent duplicate voting per voter per election
     let reg = await VoterRegistration.findOne({ where: { electionId, userId } });
@@ -118,11 +137,8 @@ exports.castVote = async (req, res) => {
     }
 
     // Increment Election total votes cast
-    const election = await Election.findByPk(electionId);
-    if (election) {
-      election.totalVotesCast += 1;
-      await election.save();
-    }
+    election.totalVotesCast += 1;
+    await election.save();
 
     return res.json({
       success: true,
@@ -139,6 +155,10 @@ exports.getResults = async (req, res) => {
   try {
     const { id } = req.params;
     const election = await Election.findByPk(id);
+    if (!election) return res.status(404).json({ error: 'Election not found' });
+
+    await syncElectionPhase(election);
+
     const candidates = await Candidate.findAll({
       where: { electionId: id },
       order: [['voteCount', 'DESC']]

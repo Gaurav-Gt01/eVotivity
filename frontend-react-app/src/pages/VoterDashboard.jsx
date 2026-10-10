@@ -221,14 +221,26 @@ export default function VoterDashboard({ elections, user, loginVoter, selectElec
         <div className="grid-3">
           {elections.map((election) => (
             <div key={election.id} className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>
                 <span className={`badge ${election.phase === 'VOTING' ? 'badge-success' : election.phase === 'COMPLETED' ? 'badge-info' : 'badge-warning'}`}>
                   {election.phase}
                 </span>
-                <small style={{ color: 'var(--text-dim)' }}>Ethereum Sepolia</small>
+                <small style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>Ethereum Sepolia</small>
               </div>
               <h3 style={{ color: 'var(--text-main)', marginBottom: '0.5rem' }}>{election.title}</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>{election.description}</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem' }}>{election.description}</p>
+
+              {/* Voting Schedule Window */}
+              <div style={{ background: '#f8fafc', border: '1px solid var(--border-subtle)', padding: '0.6rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+                  <span style={{ fontWeight: 600 }}>Voting Opens:</span>
+                  <span>{election.startDate ? new Date(election.startDate).toLocaleString() : 'N/A'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontWeight: 600 }}>Voting Closes:</span>
+                  <span>{election.endDate ? new Date(election.endDate).toLocaleString() : 'N/A'}</span>
+                </div>
+              </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
                 {election.phase === 'VOTING' && (
@@ -242,9 +254,14 @@ export default function VoterDashboard({ elections, user, loginVoter, selectElec
                   </button>
                 )}
                 {election.phase === 'REGISTRATION' && (
-                  <button onClick={() => alert("Registration confirmed for this election.")} className="btn btn-secondary" style={{ width: '100%' }}>
-                    Register for Election
-                  </button>
+                  <div>
+                    <button onClick={() => alert("Registration confirmed for this election.")} className="btn btn-secondary" style={{ width: '100%', marginBottom: '0.35rem' }}>
+                      Register for Election
+                    </button>
+                    <small style={{ display: 'block', textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.75rem' }}>
+                      Voting ballot opens automatically at scheduled time.
+                    </small>
+                  </div>
                 )}
               </div>
             </div>

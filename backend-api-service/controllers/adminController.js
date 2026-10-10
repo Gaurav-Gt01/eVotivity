@@ -2,15 +2,22 @@ const Election = require('../models/Election');
 const Candidate = require('../models/Candidate');
 const User = require('../models/User');
 const VoterRegistration = require('../models/VoterRegistration');
+const VoteRecord = require('../models/VoteRecord');
+const { computeElectionPhase } = require('../utils/phaseUtils');
 
 exports.createElection = async (req, res) => {
   try {
     const { title, description, startDate, endDate, contractAddress } = req.body;
+    const initialStartDate = startDate ? new Date(startDate) : new Date();
+    const initialEndDate = endDate ? new Date(endDate) : new Date(Date.now() + 7 * 86400000);
+    const initialPhase = computeElectionPhase(initialStartDate, initialEndDate, 'REGISTRATION');
+
     const election = await Election.create({
       title,
       description,
-      startDate: startDate || new Date(),
-      endDate: endDate || new Date(Date.now() + 7 * 86400000),
+      startDate: initialStartDate,
+      endDate: initialEndDate,
+      phase: initialPhase,
       contractAddress: contractAddress || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
     });
     return res.status(201).json(election);
@@ -29,6 +36,24 @@ exports.setElectionPhase = async (req, res) => {
 
     election.phase = phase.toUpperCase();
     await election.save();
+    return res.json(election);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+exports.updateElectionSchedule = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { startDate, endDate } = req.body;
+    const election = await Election.findByPk(id);
+    if (!election) return res.status(404).json({ error: 'Election not found' });
+
+    if (startDate) election.startDate = new Date(startDate);
+    if (endDate) election.endDate = new Date(endDate);
+    election.phase = computeElectionPhase(election.startDate, election.endDate, election.phase);
+    await election.save();
+
     return res.json(election);
   } catch (error) {
     return res.status(500).json({ error: error.message });
@@ -104,6 +129,24 @@ exports.approveCandidate = async (req, res) => {
     candidate.isApproved = approved;
     await candidate.save();
     return res.json(candidate);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+exports.deleteElection = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const election = await Election.findByPk(id);
+    if (!election) return res.status(404).json({ error: 'Election not found' });
+
+    // Clean up all associated child records to prevent foreign key orphan records
+    await Candidate.destroy({ where: { electionId: id } });
+    await VoterRegistration.destroy({ where: { electionId: id } });
+    await VoteRecord.destroy({ where: { electionId: id } });
+    await election.destroy();
+
+    return res.json({ success: true, message: `Election #${id} and associated records successfully deleted.` });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

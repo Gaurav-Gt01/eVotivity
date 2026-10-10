@@ -68,22 +68,45 @@ export default function Home({ setActivePage, elections, selectElectionForVoting
           <div className="grid-3">
             {elections.map((election) => (
               <div key={election.id} className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                  <span className={`badge ${election.phase === 'VOTING' ? 'badge-success' : 'badge-info'}`}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>
+                  <span className={`badge ${election.phase === 'VOTING' ? 'badge-success' : election.phase === 'COMPLETED' ? 'badge-info' : 'badge-warning'}`}>
                     {election.phase}
                   </span>
-                  <small style={{ color: 'var(--text-dim)' }}>Ethereum Sepolia</small>
+                  <small style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>Ethereum Sepolia</small>
                 </div>
                 <h3 style={{ color: 'var(--text-main)', marginBottom: '0.5rem' }}>{election.title}</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>{election.description}</p>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem' }}>{election.description}</p>
+
+                {/* Schedule Box */}
+                <div style={{ background: '#f8fafc', border: '1px solid var(--border-subtle)', padding: '0.6rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+                    <span style={{ fontWeight: 600 }}>Start:</span>
+                    <span>{election.startDate ? new Date(election.startDate).toLocaleString() : 'TBD'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontWeight: 600 }}>End:</span>
+                    <span>{election.endDate ? new Date(election.endDate).toLocaleString() : 'TBD'}</span>
+                  </div>
+                </div>
+
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
                   <div>
                     <small style={{ color: 'var(--text-dim)', display: 'block' }}>Total Votes Cast</small>
                     <strong style={{ color: 'var(--accent-primary)', fontSize: '1.1rem' }}>{election.totalVotesCast || 0}</strong>
                   </div>
-                  <button onClick={() => selectElectionForVoting(election)} className="btn btn-primary" style={{ padding: '0.45rem 0.95rem', fontSize: '0.85rem' }}>
-                    Cast Vote &rarr;
-                  </button>
+                  {election.phase === 'VOTING' ? (
+                    <button onClick={() => selectElectionForVoting(election)} className="btn btn-primary" style={{ padding: '0.45rem 0.95rem', fontSize: '0.85rem' }}>
+                      Cast Vote &rarr;
+                    </button>
+                  ) : election.phase === 'COMPLETED' ? (
+                    <button onClick={() => setActivePage('results')} className="btn btn-outline" style={{ padding: '0.45rem 0.95rem', fontSize: '0.85rem' }}>
+                      Results &rarr;
+                    </button>
+                  ) : (
+                    <button onClick={() => setActivePage('voter')} className="btn btn-secondary" style={{ padding: '0.45rem 0.95rem', fontSize: '0.85rem' }}>
+                      Register &rarr;
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

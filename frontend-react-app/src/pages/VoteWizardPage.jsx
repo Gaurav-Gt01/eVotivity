@@ -231,7 +231,24 @@ export default function VoteWizardPage({ election, walletAddress, connectWallet,
         <div className="badge badge-success" style={{ marginBottom: '0.5rem' }}>Triple Authentication Verification Process</div>
         <h1 style={{ fontSize: '1.8rem', color: 'var(--text-main)' }}>{election.title}</h1>
         <p style={{ color: 'var(--text-muted)' }}>{election.description}</p>
+        {election.startDate && (
+          <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            Voting Period: <strong>{new Date(election.startDate).toLocaleString()}</strong> &rarr; <strong>{new Date(election.endDate).toLocaleString()}</strong>
+          </div>
+        )}
       </div>
+
+      {election.phase !== 'VOTING' && (
+        <div className="card" style={{ background: '#fffbeb', border: '1px solid #fde68a', marginBottom: '1.5rem', textAlign: 'center' }}>
+          <h3 style={{ color: '#b45309', marginBottom: '0.5rem' }}>Voting is Not Currently Active</h3>
+          <p style={{ color: '#92400e', fontSize: '0.9rem', marginBottom: '0.75rem' }}>
+            This election is currently in the <strong>{election.phase}</strong> phase. Ballots can only be cast when the phase is <strong>VOTING</strong>.
+          </p>
+          <button onClick={() => selectElectionForResults ? selectElectionForResults(election) : window.history.back()} className="btn btn-outline" style={{ fontSize: '0.85rem' }}>
+            View Election Results / Overview
+          </button>
+        </div>
+      )}
 
       {/* Stepper Header */}
       <div className="wizard-stepper">

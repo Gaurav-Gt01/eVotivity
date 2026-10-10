@@ -48,6 +48,21 @@ const connectDB = async () => {
       });
       console.log('👑 Default Admin Account seeded successfully (gauravtatpate@gmail.com).');
     }
+
+    const genericAdmin = await User.findOne({ where: { email: 'admin@evotivity.com' } });
+    if (!genericAdmin) {
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      await User.create({
+        fullName: 'System Administrator',
+        username: 'admin',
+        email: 'admin@evotivity.com',
+        password: hashedPassword,
+        nationalId: 'ADMIN-002',
+        role: 'ROLE_ADMIN',
+        isApproved: true
+      });
+      console.log('👑 Local Admin Account seeded successfully (admin@evotivity.com / admin123).');
+    }
   } catch (error) {
     console.error('⚠️ Database connection error:', error.message);
   }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-export default function AdminDashboard({ elections, voters, createElection, updatePhase, addCandidate, approveVoter, selectElectionForResults }) {
+export default function AdminDashboard({ elections, voters, createElection, deleteElection, updatePhase, addCandidate, approveVoter, selectElectionForResults }) {
   const [adminToken, setAdminToken] = useState(() => {
     return localStorage.getItem('evotivity_admin_token') || '';
   });
@@ -30,10 +30,19 @@ export default function AdminDashboard({ elections, voters, createElection, upda
   const [pendingVoters, setPendingVoters] = useState([]);
   const [pendingCandidates, setPendingCandidates] = useState([]);
 
+  // Helper for datetime-local input formatting
+  const toDateTimeLocal = (date) => {
+    const d = new Date(date);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  };
+
   // Election Creation States
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [contractAddress, setContractAddress] = useState('');
+  const [startDate, setStartDate] = useState(() => toDateTimeLocal(new Date()));
+  const [endDate, setEndDate] = useState(() => toDateTimeLocal(new Date(Date.now() + 7 * 86400000)));
 
   // Candidate Modal States
   const [selectedElectionId, setSelectedElectionId] = useState(null);
@@ -75,8 +84,12 @@ export default function AdminDashboard({ elections, voters, createElection, upda
       });
       if (res.data.success) {
         setLoginStep(2);
-        setDevOtp(res.data.otpCode || '');
-        setAuthMessage(`2FA OTP code dispatched to ${adminEmail}`);
+        const code = res.data.otpCode || '';
+        setDevOtp(code);
+        if (code) {
+          setOtpCode(code);
+        }
+        setAuthMessage(`2FA OTP code generated for ${adminEmail}`);
       }
     } catch (err) {
       setAuthError(err.response?.data?.message || 'Invalid Admin credentials.');
@@ -113,10 +126,18 @@ export default function AdminDashboard({ elections, voters, createElection, upda
 
   const handleCreate = (e) => {
     e.preventDefault();
-    createElection({ title, description, contractAddress });
+    createElection({
+      title,
+      description,
+      contractAddress,
+      startDate: new Date(startDate).toISOString(),
+      endDate: new Date(endDate).toISOString()
+    });
     setTitle('');
     setDescription('');
     setContractAddress('');
+    setStartDate(toDateTimeLocal(new Date()));
+    setEndDate(toDateTimeLocal(new Date(Date.now() + 7 * 86400000)));
   };
 
   const handleCandidateSubmit = (e) => {
@@ -159,7 +180,12 @@ export default function AdminDashboard({ elections, voters, createElection, upda
 
           {authMessage && (
             <div style={{ background: '#dcfce7', border: '1px solid #bbf7d0', color: '#059669', padding: '0.75rem', borderRadius: 'var(--radius-md)', marginBottom: '1rem', fontSize: '0.85rem', textAlign: 'center' }}>
-              {authMessage}
+              <div>{authMessage}</div>
+              {devOtp && (
+                <div style={{ marginTop: '0.5rem', fontWeight: 700, fontSize: '0.95rem', color: '#047857' }}>
+                  🔑 Local 2FA Code: <span style={{ fontFamily: 'monospace', background: '#ffffff', padding: '0.2rem 0.5rem', borderRadius: '4px', letterSpacing: '0.15em', border: '1px solid #a7f3d0' }}>{devOtp}</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -190,9 +216,10 @@ export default function AdminDashboard({ elections, voters, createElection, upda
               </div>
 
               <div style={{ background: '#f1f5f9', border: '1px solid var(--border-subtle)', padding: '0.75rem', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                <strong>Default Credentials:</strong><br />
-                Email: <code>gauravtatpate@gmail.com</code><br />
-                Password: <code>gauravtatpate01</code>
+                <strong>Available Admin Accounts:</strong><br />
+                1. <code>gauravtatpate@gmail.com</code> / <code>gauravtatpate01</code><br />
+                2. <code>admin@evotivity.com</code> / <code>admin123</code><br />
+                <em style={{ fontSize: '0.75rem', color: '#64748b' }}>OTP code will be displayed directly on screen in dev mode.</em>
               </div>
 
               <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
@@ -328,6 +355,16 @@ export default function AdminDashboard({ elections, voters, createElection, upda
               <input type="text" className="form-control" value={contractAddress} onChange={(e) => setContractAddress(e.target.value)} placeholder="0x..." />
             </div>
           </div>
+          <div className="grid-2">
+            <div className="form-group">
+              <label className="form-label">Voting Start Date & Time (Phase: REGISTRATION before this)</label>
+              <input type="datetime-local" className="form-control" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Voting End Date & Time (Phase: COMPLETED after this)</label>
+              <input type="datetime-local" className="form-control" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
+            </div>
+          </div>
           <div className="form-group">
             <label className="form-label">Description & Guidelines</label>
             <textarea className="form-control" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Enter election overview..." />
@@ -347,7 +384,8 @@ export default function AdminDashboard({ elections, voters, createElection, upda
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                   <th style={{ padding: '0.75rem' }}>Title</th>
-                  <th style={{ padding: '0.75rem' }}>Phase</th>
+                  <th style={{ padding: '0.75rem' }}>Current Phase</th>
+                  <th style={{ padding: '0.75rem' }}>Voting Schedule (Date & Time)</th>
                   <th style={{ padding: '0.75rem' }}>Contract Address</th>
                   <th style={{ padding: '0.75rem' }}>Phase Control</th>
                   <th style={{ padding: '0.75rem' }}>Actions</th>
@@ -360,22 +398,32 @@ export default function AdminDashboard({ elections, voters, createElection, upda
                       <strong>{election.title}</strong>
                     </td>
                     <td style={{ padding: '0.75rem' }}>
-                      <span className={`badge ${election.phase === 'VOTING' ? 'badge-success' : election.phase === 'COMPLETED' ? 'badge-info' : 'badge-warning'}`}>
-                        {election.phase}
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                        <span className={`badge ${election.phase === 'VOTING' ? 'badge-success' : election.phase === 'COMPLETED' ? 'badge-info' : 'badge-warning'}`}>
+                          {election.phase}
+                        </span>
+                        <small style={{ color: 'var(--text-dim)', fontSize: '0.72rem' }}>⏱️ Auto-sync</small>
+                      </div>
+                    </td>
+                    <td style={{ padding: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      <div><strong>Opens:</strong> {election.startDate ? new Date(election.startDate).toLocaleString() : 'Not Set'}</div>
+                      <div><strong>Closes:</strong> {election.endDate ? new Date(election.endDate).toLocaleString() : 'Not Set'}</div>
                     </td>
                     <td style={{ padding: '0.75rem', fontFamily: 'monospace', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>
                       {election.contractAddress ? `${election.contractAddress.substring(0, 10)}...` : 'N/A'}
                     </td>
                     <td style={{ padding: '0.75rem' }}>
-                      <div style={{ display: 'flex', gap: '0.25rem' }}>
-                        <button onClick={() => updatePhase(election.id, 'REGISTRATION')} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>REG</button>
-                        <button onClick={() => updatePhase(election.id, 'VOTING')} className="btn btn-primary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>VOTING</button>
-                        <button onClick={() => updatePhase(election.id, 'COMPLETED')} className="btn btn-outline" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>COMPLETE</button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <div style={{ display: 'flex', gap: '0.25rem' }}>
+                          <button onClick={() => updatePhase(election.id, 'REGISTRATION')} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} title="Manual override to REGISTRATION">REG</button>
+                          <button onClick={() => updatePhase(election.id, 'VOTING')} className="btn btn-primary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} title="Manual override to VOTING">VOTING</button>
+                          <button onClick={() => updatePhase(election.id, 'COMPLETED')} className="btn btn-outline" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} title="Manual override to COMPLETED">DONE</button>
+                        </div>
+                        <small style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>Manual Override</small>
                       </div>
                     </td>
                     <td style={{ padding: '0.75rem' }}>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                         <button 
                           onClick={() => { setSelectedElectionId(election.id); setShowCandidateModal(true); }}
                           className="btn btn-secondary" style={{ padding: '0.3rem 0.65rem', fontSize: '0.75rem' }}
@@ -384,6 +432,14 @@ export default function AdminDashboard({ elections, voters, createElection, upda
                         </button>
                         <button onClick={() => selectElectionForResults(election)} className="btn btn-outline" style={{ padding: '0.3rem 0.65rem', fontSize: '0.75rem' }}>
                           Results
+                        </button>
+                        <button 
+                          onClick={() => deleteElection && deleteElection(election.id)} 
+                          className="btn btn-secondary" 
+                          style={{ padding: '0.3rem 0.65rem', fontSize: '0.75rem', color: '#dc2626', borderColor: '#fca5a5' }}
+                          title="Permanently delete election and related records"
+                        >
+                          Delete
                         </button>
                       </div>
                     </td>
