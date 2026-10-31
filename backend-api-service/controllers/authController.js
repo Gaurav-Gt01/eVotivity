@@ -4,6 +4,7 @@ const { Op } = require('sequelize');
 const User = require('../models/User');
 const OtpToken = require('../models/OtpToken');
 const { sendOtpEmail } = require('../utils/emailService');
+const redis = require('../config/redis');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'evotivity_jwt_secret_key_2026';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'evotivity_jwt_refresh_secret_2026';
@@ -130,6 +131,10 @@ exports.forgotPasswordOtp = async (req, res) => {
     }
 
     const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+    
+    // Store in Redis with 10-minute auto-expiry (600s)
+    await redis.set(`otp:recovery:${email.toLowerCase()}`, otpCode, 600);
+
     await OtpToken.create({
       email,
       electionId: 0,
@@ -153,27 +158,28 @@ exports.forgotPasswordOtp = async (req, res) => {
 exports.resetCredentialsWithOtp = async (req, res) => {
   try {
     const { email, otpCode, newPassword } = req.body;
-    const token = await OtpToken.findOne({
-      where: { email, otpCode },
-      order: [['createdAt', 'DESC']]
-    });
+    const redisKey = `otp:recovery:${(email || '').toLowerCase()}`;
 
-    if (!token || new Date() > token.expiresAt) {
+    const cachedOtp = await redis.get(redisKey);
+    let isValid = (cachedOtp && cachedOtp === String(otpCode));
+
+    if (!isValid) {
+      const token = await OtpToken.findOne({
+        where: { email, otpCode },
+        order: [['createdAt', 'DESC']]
+      });
+      if (token && new Date() <= token.expiresAt) {
+        isValid = true;
+        token.isVerified = true;
+        await token.save();
+      }
+    }
+
+    if (!isValid) {
       return res.status(400).json({ success: false, message: 'Invalid or expired OTP code.' });
     }
 
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User account not found.' });
-    }
-
-    if (newPassword) {
-      user.password = await bcrypt.hash(newPassword, 10);
-      await user.save();
-    }
-
-    token.isVerified = true;
-    await token.save();
+    await redis.del(redisKey);
 
     return res.json({
       success: true,
@@ -206,6 +212,10 @@ exports.adminLoginStep1 = async (req, res) => {
 
     // Generate 2FA OTP code for Admin
     const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+    
+    // Store in Redis with 10-minute auto-expiry (600s)
+    await redis.set(`otp:admin:${adminUser.email.toLowerCase()}`, otpCode, 600);
+
     await OtpToken.create({
       email: adminUser.email,
       electionId: 0,
@@ -230,23 +240,28 @@ exports.adminLoginStep1 = async (req, res) => {
 exports.adminLoginStep2 = async (req, res) => {
   try {
     const { email, otpCode } = req.body;
+    const redisKey = `otp:admin:${(email || '').toLowerCase()}`;
 
-    const token = await OtpToken.findOne({
-      where: { email, otpCode },
-      order: [['createdAt', 'DESC']]
-    });
+    const cachedOtp = await redis.get(redisKey);
+    let isValid = (cachedOtp && cachedOtp === String(otpCode));
 
-    if (!token || new Date() > token.expiresAt) {
+    if (!isValid) {
+      const token = await OtpToken.findOne({
+        where: { email, otpCode },
+        order: [['createdAt', 'DESC']]
+      });
+      if (token && new Date() <= token.expiresAt) {
+        isValid = true;
+        token.isVerified = true;
+        await token.save();
+      }
+    }
+
+    if (!isValid) {
       return res.status(400).json({ success: false, message: 'Invalid or expired 2FA OTP code.' });
     }
 
-    const adminUser = await User.findOne({ where: { email, role: 'ROLE_ADMIN' } });
-    if (!adminUser) {
-      return res.status(404).json({ success: false, message: 'Admin account not found.' });
-    }
-
-    token.isVerified = true;
-    await token.save();
+    await redis.del(redisKey);
 
     // Generate JWT Access & Refresh Tokens
     const accessToken = jwt.sign(

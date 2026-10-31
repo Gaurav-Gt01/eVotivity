@@ -1,3 +1,4 @@
+const redis = require('../config/redis');
 const crypto = require('crypto');
 const Election = require('../models/Election');
 const Candidate = require('../models/Candidate');
@@ -70,8 +71,20 @@ exports.getVoterStatus = async (req, res) => {
 };
 
 exports.castVote = async (req, res) => {
+  const { electionId, candidateId, userId, walletAddress, txHash, blockNumber } = req.body;
+  let lockAcquired = false;
+
   try {
-    const { electionId, candidateId, userId, walletAddress, txHash, blockNumber } = req.body;
+    // 🔒 Redis Distributed Lock: Prevent concurrent double voting race conditions
+    if (walletAddress) {
+      lockAcquired = await redis.acquireVoteLock(electionId, walletAddress, 15);
+      if (!lockAcquired) {
+        return res.status(400).json({
+          success: false,
+          message: 'A ballot transaction is currently being processed for this wallet. Please wait.'
+        });
+      }
+    }
 
     // Verify Election exists and is currently in active VOTING phase
     const election = await Election.findByPk(electionId);
@@ -148,6 +161,10 @@ exports.castVote = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
+  } finally {
+    if (lockAcquired && walletAddress) {
+      await redis.releaseVoteLock(electionId, walletAddress);
+    }
   }
 };
 

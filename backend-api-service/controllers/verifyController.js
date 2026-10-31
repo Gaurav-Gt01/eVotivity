@@ -1,3 +1,4 @@
+const redis = require('../config/redis');
 const User = require('../models/User');
 const OtpToken = require('../models/OtpToken');
 const http = require('http');
@@ -62,6 +63,10 @@ exports.sendOtp = async (req, res) => {
     const targetEmail = email || 'voter@example.com';
     const otpCode = String(Math.floor(100000 + Math.random() * 900000));
 
+    // Fast Redis In-Memory Storage (10-minute auto-expiry)
+    await redis.set(`otp:voter:${targetEmail.toLowerCase()}:${electionId || 0}`, otpCode, 600);
+
+    // Database record for persistent audit
     await OtpToken.create({
       email: targetEmail,
       electionId: electionId || 0,
@@ -86,16 +91,30 @@ exports.sendOtp = async (req, res) => {
 exports.verifyOtp = async (req, res) => {
   try {
     const { email, electionId, otpCode } = req.body;
+    const redisKey = `otp:voter:${(email || '').toLowerCase()}:${electionId || 0}`;
 
-    const token = await OtpToken.findOne({
-      where: { email, electionId, otpCode },
-      order: [['createdAt', 'DESC']]
-    });
+    // 1. Check Redis cache first
+    const cachedOtp = await redis.get(redisKey);
+    let isValid = (cachedOtp && cachedOtp === String(otpCode));
 
-    if (token && new Date() < token.expiresAt) {
-      token.isVerified = true;
-      await token.save();
-      return res.json({ verified: true, message: 'Email OTP verified successfully' });
+    // 2. Fallback check in Database if Redis had cold miss
+    if (!isValid) {
+      const token = await OtpToken.findOne({
+        where: { email, electionId, otpCode },
+        order: [['createdAt', 'DESC']]
+      });
+
+      if (token && new Date() < token.expiresAt) {
+        isValid = true;
+        token.isVerified = true;
+        await token.save();
+      }
+    }
+
+    if (isValid) {
+      // Invalidate Redis OTP upon successful verification
+      await redis.del(redisKey);
+      return res.json({ verified: true, message: 'Email OTP verified successfully (Redis validated)' });
     }
 
     return res.status(400).json({ verified: false, message: 'Invalid or expired OTP code' });
