@@ -1,0 +1,127 @@
+/* src/tour/tour.css */
+
+.tour-root {
+  --tour-accent: var(--accent-primary, #4f46e5);
+  --tour-surface: #ffffff;
+  --tour-text: #1c2230;
+  --tour-muted: #5b6475;
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  pointer-events: none; /* clicks reach the real page, including the highlighted button */
+  font-family: inherit;
+}
+
+/* Full-screen dim for steps without a target. */
+.tour-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 14, 25, 0.55);
+  pointer-events: auto; /* info steps block the page behind them */
+}
+
+/* The huge box-shadow darkens everything except the highlighted element. */
+.tour-spotlight {
+  position: absolute;
+  border-radius: 10px;
+  box-shadow: 0 0 0 9999px rgba(10, 14, 25, 0.55);
+  outline: 2px solid var(--tour-accent);
+  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
+}
+
+.tour-spotlight::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 14px;
+  border: 2px solid var(--tour-accent);
+  animation: tour-pulse 1.6s ease-out infinite;
+}
+
+@keyframes tour-pulse {
+  from { opacity: 0.8; transform: scale(1); }
+  to   { opacity: 0;   transform: scale(1.12); }
+}
+
+.tour-popover {
+  position: absolute;
+  box-sizing: border-box;
+  max-width: calc(100vw - 24px);
+  padding: 16px 18px 14px;
+  background: var(--tour-surface);
+  color: var(--tour-text);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(10, 14, 25, 0.28);
+  pointer-events: auto;
+}
+
+.tour-progress {
+  font-size: 12px;
+  color: var(--tour-muted);
+  margin-bottom: 4px;
+}
+
+.tour-title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.tour-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--tour-text);
+}
+
+.tour-link {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tour-accent);
+}
+
+.tour-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+}
+
+.tour-skip {
+  background: none;
+  border: 0;
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--tour-muted);
+  cursor: pointer;
+}
+
+.tour-skip:hover { text-decoration: underline; }
+
+.tour-next {
+  background: var(--tour-accent);
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tour-next:hover { filter: brightness(1.08); }
+
+.tour-next:focus-visible,
+.tour-skip:focus-visible,
+.tour-link:focus-visible {
+  outline: 2px solid var(--tour-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-spotlight { transition: none; }
+  .tour-spotlight::after { animation: none; }
+}

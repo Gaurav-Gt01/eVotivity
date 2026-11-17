@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
+import { useTour } from '../tour/TourProvider';
 
 export default function VoterDashboard({ elections, user, loginVoter, selectElectionForVoting, selectElectionForResults }) {
   const [activeTab, setActiveTab] = useState('login'); // 'login', 'signup', 'forgot'
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const { startTour, goToStep } = useTour();
 
   // Form states
   const [identifier, setIdentifier] = useState('');
@@ -36,6 +38,11 @@ export default function VoterDashboard({ elections, user, loginVoter, selectElec
     }
     return () => clearInterval(timer);
   }, [otpCooldown]);
+
+  // First time someone opens the Sign Up form, start the guided walkthrough.
+  useEffect(() => {
+    if (showAuthModal && activeTab === 'signup' && !user) startTour();
+  }, [showAuthModal, activeTab, user, startTour]);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -144,6 +151,7 @@ export default function VoterDashboard({ elections, user, loginVoter, selectElec
       if (res.data.success) {
         alert("Registration successful! You may now log in.");
         loginVoter(res.data);
+        goToStep('done');
         setShowAuthModal(false);
       }
     } catch (err) {
@@ -200,6 +208,9 @@ export default function VoterDashboard({ elections, user, loginVoter, selectElec
               </button>
               <button onClick={() => { setActiveTab('signup'); setShowAuthModal(true); }} className="btn btn-secondary">
                 Register New Voter
+              </button>
+              <button onClick={() => { setActiveTab('signup'); setShowAuthModal(true); startTour({ force: true }); }} className="btn btn-outline">
+                How to register
               </button>
             </div>
           ) : (
@@ -313,6 +324,7 @@ export default function VoterDashboard({ elections, user, loginVoter, selectElec
             {/* SIGNUP FORM */}
             {activeTab === 'signup' && (
               <form onSubmit={handleSignupSubmit}>
+                <div data-tour="signup-details">
                 <div className="form-group">
                   <label className="form-label">Full Name</label>
                   <input type="text" className="form-control" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="John Doe" required />
@@ -334,12 +346,14 @@ export default function VoterDashboard({ elections, user, loginVoter, selectElec
                   <input type="password" className="form-control" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} placeholder="••••••••" required />
                 </div>
 
+                </div>
+
                 {/* MetaMask Connect */}
                 <div className="form-group">
                   <label className="form-label">MetaMask Wallet Address</label>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <input type="text" className="form-control" value={walletAddress} readOnly placeholder="0x..." />
-                    <button type="button" onClick={handleConnectWallet} className="btn btn-outline" style={{ whiteSpace: 'nowrap' }}>
+                    <input type="text" className="form-control" value={walletAddress} readOnly placeholder="0x..." data-tour="wallet-address" />
+                    <button type="button" data-tour="connect-wallet" onClick={handleConnectWallet} className="btn btn-outline" style={{ whiteSpace: 'nowrap' }}>
                       Connect Wallet
                     </button>
                   </div>
@@ -349,7 +363,7 @@ export default function VoterDashboard({ elections, user, loginVoter, selectElec
                 <div className="form-group">
                   <label className="form-label">Registration Face Scan</label>
                   {!cameraActive ? (
-                    <button type="button" onClick={startCamera} className="btn btn-secondary" style={{ width: '100%' }}>
+                    <button type="button" data-tour="start-camera" onClick={startCamera} className="btn btn-secondary" style={{ width: '100%' }}>
                       Start Camera for Face Scan
                     </button>
                   ) : (
@@ -358,7 +372,7 @@ export default function VoterDashboard({ elections, user, loginVoter, selectElec
                         <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height: '180px', background: '#000' }}></video>
                         <canvas ref={canvasRef} width="320" height="240" style={{ display: 'none' }}></canvas>
                       </div>
-                      <button type="button" onClick={captureFaceSnapshot} className="btn btn-primary" style={{ width: '100%' }}>
+                      <button type="button" data-tour="capture-face" onClick={captureFaceSnapshot} className="btn btn-primary" style={{ width: '100%' }}>
                         Capture Face Photo
                       </button>
                     </div>
@@ -371,7 +385,7 @@ export default function VoterDashboard({ elections, user, loginVoter, selectElec
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
-                  <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Register Account</button>
+                  <button type="submit" data-tour="register-submit" className="btn btn-primary" style={{ flex: 1 }}>Register Account</button>
                   <button type="button" onClick={() => setShowAuthModal(false)} className="btn btn-secondary">Close</button>
                 </div>
               </form>
